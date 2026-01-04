@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>丝路面魂 - 手机版</title>
+    <style>
+        body { margin: 0; background: #1a1512; color: #f2e6d9; font-family: 'PingFang SC', sans-serif; overflow: hidden; touch-action: none; }
+        
+        /* 启动封面 - 优雅且必杀 */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #3d2b1f 0%, #1a1512 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        #start-btn {
+            padding: 20px 60px; font-size: 26px; font-weight: bold;
+            background: #d32f2f; color: white; border: 4px solid #ffcc00;
+            border-radius: 50px; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 游戏界面层 */
+        #game-ui { position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 100; opacity: 0; }
+        .noodle-title { font-size: 32px; color: #ffcc00; font-weight: bold; margin: 0; text-shadow: 0 2px 4px #000; }
+        
+        /* 打击垫区域 */
+        #hit-pad {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 280px; height: 100px; 
+            background: linear-gradient(to bottom, #d32f2f, #a02323);
+            border: 4px solid #fff; border-radius: 50px;
+            display: none; justify-content: center; align-items: center;
+            font-size: 24px; font-weight: bold; color: white;
+            box-shadow: 0 8px 0 #7a1b1b, 0 10px 20px rgba(0,0,0,0.4);
+            z-index: 500; cursor: pointer;
+        }
+        #hit-pad:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 4px 0 #7a1b1b; }
+
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- 第一层：启动屏 -->
+    <div id="start-screen">
+        <div style="font-size: 40px; color: #ffcc00; margin-bottom: 20px; font-weight: 900;">丝路面魂</div>
+        <div style="margin-bottom: 40px; color: #aaa;">一揉一拉，皆是匠心</div>
+        <button id="start-btn">进店买票</button>
+    </div>
+
+    <!-- 第二层：游戏UI -->
+    <div id="game-ui">
+        <h1 class="noodle-title" id="n-name">正在制作</h1>
+        <div id="n-progress" style="font-size: 18px; margin-top: 10px;">请开始拉面</div>
+    </div>
+
+    <!-- 第三层：打击垫 -->
+    <div id="hit-pad">敲 击 面 案</div>
+
+    <canvas id="mainCanvas"></canvas>
+
+<script>
+    /** 配置与音符逻辑 **/
+    const NOODLES = [
+        { name: "大宽", max: 1, w: 60 }, { name: "薄宽", max: 2, w: 45 },
+        { name: "韭叶", max: 3, w: 35 }, { name: "二细", max: 4, w: 25 },
+        { name: "三细", max: 5, w: 18 }, { name: "细的", max: 6, w: 10 },
+        { name: "毛细", max: 7, w: 6 }
+    ];
+
+    // 2/4 拍：一圈代表两拍
+    const RHYTHMS = [
+        [0, 180],           // 两个四分音符 (1/4 + 1/4)
+        [0, 180, 270],      // 前1/4后1/8 (哒...哒哒)
+        [0, 90, 180],       // 前1/8后1/4 (哒哒...哒)
+        [0, 60, 120, 180],  // 前半三连音
+        [0, 90, 180, 270]   // 四个八分音符 (哒哒哒哒)
+    ];
+
+    let canvas, ctx, audioCtx;
+    let isPlaying = false, curNoodle = null, pullIdx = 0;
+    let hitSet = new Set(), startTime = 0, pattern = [];
+    let handDist = 120, targetDist = 120, shake = 0;
+    const LOOP_SEC = 1.6; // 控制节奏速度
+
+    const startBtn = document.getElementById('start-btn');
+    const startScreen = document.getElementById('start-screen');
+    const hitPad = document.getElementById('hit-pad');
+    const gameUI = document.getElementById('game-ui');
+
+    /** 核心点击启动函数 **/
+    startBtn.onclick = function() {
+        // 1. 初始化音频
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        // 2. 初始化画布
+        canvas = document.getElementById('mainCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        ctx = canvas.getContext('2d');
+
+        // 3. 界面切换
+        startScreen.style.display = 'none';
+        hitPad.style.display = 'flex';
+        gameUI.style.opacity = 1;
+
+        // 4. 开启游戏
+        newOrder();
+        isPlaying = true;
+        requestAnimationFrame(render);
+    };
+
+    function newOrder() {
+        curNoodle = NOODLES[Math.floor(Math.random() * NOODLES.length)];
+        pullIdx = 0;
+        resetPull();
+    }
+
+    function resetPull() {
+        hitSet.clear();
+        startTime = audioCtx.currentTime;
+        // 80% 几率选简单节奏，剩下随拉数变难
+        pattern = RHYTHMS[Math.floor(Math.random() * RHYTHMS.length)];
+        document.getElementById('n-name').innerText = curNoodle.name;
+        document.getElementById('n-progress').innerText = `第 ${pullIdx + 1} / ${curNoodle.max} 拉`;
+    }
+
+    /** 交互逻辑 **/
+    function handleTap() {
+        if (!isPlaying) {
+            if (pullIdx >= curNoodle.max) {
+                newOrder(); isPlaying = true; hitPad.innerText = "敲 击 面 案";
+            }
+            return;
+        }
+
+        const now = audioCtx.currentTime;
+        const elapsed = (now - startTime) % LOOP_SEC;
+        const tapDeg = (elapsed / LOOP_SEC) * 360;
+
+        let hitIdx = -1;
+        pattern.forEach((deg, i) => {
+            let diff = Math.abs(tapDeg - deg);
+            if (diff > 180) diff = 360 - diff;
+            if (diff < 22) hitIdx = i; // 判定宽容度
+        });
+
+        if (hitIdx !== -1 && !hitSet.has(hitIdx)) {
+            hitSet.add(hitIdx);
+            beep(600, 0.1); shake = 15;
+            targetDist = 300 + (pullIdx * 35);
+            if (hitSet.size >= pattern.length) {
+                pullIdx++;
+                if (pullIdx >= curNoodle.max) {
+                    finishNoodle();
+                } else {
+                    setTimeout(resetPull, 100);
+                }
+            }
+        } else {
+            beep(120, 0.2); shake = 6; targetDist = 130;
+        }
+    }
+
+    function finishNoodle() {
+        isPlaying = false;
+        targetDist = 600;
+        document.getElementById('n-progress').innerText = "出品成功！点击下一单";
+        hitPad.innerText = "下一单";
+    }
+
+    function beep(f, d) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = f;
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + d);
+    }
+
+    /** 渲染循环 **/
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = canvas.width / 2, cy = canvas.height * 0.38;
+
+        // 物理逻辑
+        handDist += (targetDist - handDist) * 0.15;
+        targetDist *= 0.94;
+        if(targetDist < 120) targetDist = 120;
+
+        ctx.save();
+        if(shake > 0) {
+            ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2);
+            shake *= 0.9;
+        }
+
+        // 面条分裂 (1, 1, 1, 2, 4, 8, 16...)
+        let lineCount = pullIdx < 3 ? 1 : Math.pow(2, pullIdx - 2);
+        let thick = (curNoodle.w / Math.max(1, pullIdx)) * (150/handDist);
+
+        for (let i = 0; i < Math.min(lineCount, 64); i++) {
+            ctx.strokeStyle = `rgba(255, 252, 230, ${0.4 + 1/lineCount})`;
+            ctx.lineWidth = Math.max(1, thick);
+            let off = (i - lineCount/2) * (thick + 1.8);
+            ctx.beginPath();
+            ctx.moveTo(cx - handDist, cy + off);
+            let sag = Math.max(0, 180 - handDist/1.4);
+            ctx.bezierCurveTo(cx, cy+off+sag, cx, cy+off+sag, cx+handDist, cy+off);
+            ctx.stroke();
+        }
+        
+        // 手部
+        ctx.fillStyle = "#ffcc00";
+        ctx.beginPath(); ctx.arc(cx-handDist, cy, 15, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx+handDist, cy, 15, 0, 7); ctx.fill();
+        ctx.restore();
+
+        // 节奏圆盘
+        if (isPlaying) {
+            const dcx = cx, dcy = canvas.height * 0.68, r = 75;
+            ctx.beginPath(); ctx.arc(dcx, dcy, r, 0, 7);
+            ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.stroke();
+            
+            pattern.forEach((deg, i) => {
+                ctx.fillStyle = hitSet.has(i) ? "#00ff88" : "rgba(255,204,0,0.3)";
+                const rad = (deg - 90) * Math.PI / 180;
+                ctx.beginPath(); ctx.arc(dcx + Math.cos(rad)*r, dcy + Math.sin(rad)*r, 12, 0, 7);
+                ctx.fill();
+            });
+
+            const curDeg = ((audioCtx.currentTime - startTime) % LOOP_SEC / LOOP_SEC) * 360;
+            const sRad = (curDeg - 90) * Math.PI / 180;
+            ctx.beginPath(); ctx.moveTo(dcx, dcy);
+            ctx.lineTo(dcx + Math.cos(sRad)*r, dcy + Math.sin(sRad)*r);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+        }
+
+        requestAnimationFrame(render);
+    }
+
+    // 绑定点击区 (支持多端)
+    hitPad.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(); }, {passive: false});
+    hitPad.addEventListener('mousedown', handleTap);
+</script>
+</body>
+</html>
