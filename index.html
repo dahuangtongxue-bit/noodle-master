@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>拉面大师 - 修复运行版</title>
+    <title>拉面大师 - 60秒最终版</title>
     <style>
         :root {
             --primary-blue: #104e8b;
@@ -27,23 +27,21 @@
             display: flex; flex-direction: column; width: 100%; height: 100%;
         }
 
-        /* 1. 顶部数据栏 */
+        /* HUD */
         .hud-header {
             flex: 0 0 70px; display: flex; justify-content: space-between; align-items: center;
             padding: 0 20px; background: #fff; border-bottom: 2px solid #eee; z-index: 10;
         }
         .hud-item { display: flex; flex-direction: column; align-items: center; }
-        .hud-label { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+        .hud-label { font-size: 10px; color: #999; letter-spacing: 1px; }
         .hud-value { font-size: 24px; font-weight: 800; color: #333; font-variant-numeric: tabular-nums; }
-        
         .hud-value.rating { color: var(--star-color); display: flex; align-items: center; gap: 5px; }
         .star-icon { font-size: 20px; }
 
-        /* 进度条 */
         .progress-bar-container { width: 100%; height: 4px; background: #eee; }
         .progress-bar { width: 0%; height: 100%; background: var(--primary-blue); transition: width 1s linear; }
 
-        /* 2. 状态条 */
+        /* Phase Bar */
         .phase-bar {
             height: 30px; display: flex; align-items: center; justify-content: center;
             font-weight: bold; font-size: 14px; color: white; letter-spacing: 1px;
@@ -55,20 +53,21 @@
         .phase-bar.done { background: var(--success-color); }
         .phase-bar.fail { background: var(--fail-color); }
 
-        /* 3. 五线谱区 */
+        /* Score Section */
         .score-section {
-            flex: 0 0 120px; background: #fff; position: relative;
+            flex: 0 0 130px; background: #fff; position: relative;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border-bottom: 1px solid #f0f0f0; transition: background 0.2s;
         }
         .score-section.listening { background: #f9f9f9; }
         
         .order-text {
-            font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;
-            background: #eee; padding: 2px 10px; border-radius: 10px;
+            font-size: 20px; font-weight: 900; color: #333; margin-bottom: 5px;
+            background: #FFECB3; padding: 4px 15px; border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); transform: translateY(-5px);
         }
 
-        .staff-wrapper { position: relative; width: 100%; height: 80px; display: flex; justify-content: center; }
+        .staff-wrapper { position: relative; width: 100%; height: 70px; display: flex; justify-content: center; }
         .staff-lines {
             position: absolute; width: 80%; height: 60px; left: 10%;
             background-image: repeating-linear-gradient(0deg, #333, #333 1px, transparent 1px, transparent 14px);
@@ -84,17 +83,18 @@
             margin-left: 60px; transform: translateY(-15px);
         }
 
-        /* 4. 主舞台 */
+        /* Main Stage */
         .main-stage {
             flex: 1; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             position: relative; width: 100%;
         }
 
-        /* Combo 显示 */
+        /* Combo & Bonus UI */
         .combo-container {
             position: absolute; right: 20px; top: 20px;
             text-align: right; pointer-events: none; z-index: 5;
+            display: flex; flex-direction: column; align-items: flex-end;
         }
         .combo-label { font-size: 12px; color: #999; font-weight: bold; letter-spacing: 2px; }
         .combo-value { 
@@ -103,6 +103,12 @@
         }
         .combo-value.active { color: var(--active-color); }
         .combo-value.pop { transform: scale(1.3); }
+        
+        .combo-bonus {
+            font-size: 18px; font-weight: bold; color: var(--success-color);
+            opacity: 0; transform: translateY(10px); transition: all 0.2s;
+        }
+        .combo-bonus.show { opacity: 1; transform: translateY(0); }
 
         .rhythm-svg {
             width: 55vw; height: 55vw; max-width: 240px; max-height: 240px;
@@ -133,7 +139,7 @@
             transform: translateY(20px) rotate(45deg); 
         }
 
-        /* 5. 底部按钮 */
+        /* Button */
         .hit-btn {
             flex: 0 0 35%; background: #ccc; 
             color: rgba(255,255,255,0.8);
@@ -155,20 +161,7 @@
             40%, 80% { transform: translateX(10px); }
         }
 
-        /* 飘字 */
-        .float-text {
-            position: absolute; font-weight: bold; font-size: 24px;
-            pointer-events: none; animation: floatUp 0.8s forwards; z-index: 100;
-        }
-        .float-text.plus { color: var(--success-color); }
-        .float-text.minus { color: var(--fail-color); }
-
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-80px); }
-        }
-
-        /* 6. 遮罩 */
+        /* Overlay */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.98); z-index: 999;
@@ -181,6 +174,33 @@
             border: none; border-radius: 50px; cursor: pointer;
             box-shadow: 0 5px 15px rgba(16, 78, 139, 0.3);
         }
+        
+        /* Float Text */
+        .float-text {
+            position: absolute; font-weight: bold; font-size: 24px;
+            pointer-events: none; animation: floatUp 0.8s forwards; z-index: 100;
+        }
+        .float-text.plus { color: var(--success-color); }
+        .float-text.minus { color: var(--fail-color); }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-80px); }
+        }
+        
+        /* End Screen Text */
+        .ramen-god-text {
+            font-size: 40px; font-weight: 900; color: #d32f2f;
+            text-shadow: 2px 2px 0 #fff, 0 0 10px rgba(211, 47, 47, 0.5);
+            margin-bottom: 5px; animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .ramen-master-text {
+            font-size: 20px; font-weight: bold; color: #555;
+            font-family: 'Georgia', serif; font-style: italic;
+            margin-bottom: 20px; opacity: 0; animation: fadeIn 1s 0.5s forwards;
+        }
+        @keyframes zoomIn { from {transform: scale(0);} to {transform: scale(1);} }
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
     </style>
 </head>
 <body>
@@ -190,6 +210,13 @@
         <div class="hud-item">
             <span class="hud-label">时间</span>
             <span class="hud-value" id="time-display">01:00</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">速度</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <input type="range" id="bpm-range" min="40" max="120" value="80" style="width:80px;">
+                <span style="font-size:14px; font-weight:bold; color:#333;" id="bpm-val">80</span>
+            </div>
         </div>
         <div class="hud-item">
             <span class="hud-label">大众点评</span>
@@ -204,7 +231,7 @@
     <div class="phase-bar listen" id="phase-bar">👀 听题</div>
 
     <div class="score-section" id="score-section">
-        <div class="order-text" id="order-text">大宽</div>
+        <div class="order-text" id="order-text">准备开始</div>
         <div class="staff-wrapper">
             <div class="staff-lines"></div>
             <div class="time-signature"><span>2</span><span>4</span></div>
@@ -216,6 +243,7 @@
         <div class="combo-container">
             <div class="combo-label">COMBO</div>
             <div class="combo-value" id="combo-value">0</div>
+            <div class="combo-bonus" id="combo-bonus">+0.25</div>
         </div>
 
         <svg class="rhythm-svg dim" id="rhythm-circle" viewBox="0 0 100 100">
@@ -238,73 +266,53 @@
 
     <div class="overlay" id="overlay">
         <h1>🍜 拉面大师</h1>
-        <p style="color:#666; margin:10px 0;">看谱 · 听题 · 抢拍演奏</p>
+        <p style="color:#666; margin:10px 0;">3.5分起步 · 满5分封神</p>
         <button class="start-btn" id="start-btn">开始营业</button>
     </div>
     
     <div class="overlay" id="end-overlay" style="display:none;">
-        <h1>😴 打烊了</h1>
-        <p style="color:#666; margin:10px 0;">最终评分</p>
-        <div style="font-size:48px; font-weight:bold; color:var(--star-color);">
-            ⭐ <span id="final-score">0</span>
-        </div>
-        <div style="font-size:14px; color:#999; margin-top:10px;">最大连击: <span id="max-combo">0</span></div>
+        <div id="end-content" style="text-align:center;"></div>
         <button class="start-btn" id="restart-btn">再次营业</button>
     </div>
 </div>
 
 <script>
-// 全局错误捕捉，防止按钮点不动
-window.onerror = function(msg, url, line) {
-    alert("游戏发生错误: " + msg);
-};
+window.onerror = function(msg) { alert("Error: " + msg); };
 
-// --- 配置 ---
-const GAME_DURATION = 60; 
-const BPM = 60; 
+// --- 核心配置 ---
+const GAME_DURATION = 60; // 60秒
+let BPM = 80; 
 const TOLERANCE = 0.2; 
 
+// 题目定义
 const patterns = [
     { 
-        id: 'dakuan', name: "大宽", 
-        angles: [360], 
-        draw: (el) => drawNotes(el, ['whole']), 
-        timing: [0.0] 
+        id: 'mian', name: "面", 
+        angles: [360], draw: (el) => drawNotes(el, ['whole']), timing: [0.0] 
     },
     { 
-        id: 'bokuan', name: "薄宽", 
-        angles: [180, 180], 
-        draw: (el) => drawNotes(el, ['quarter', 'quarter']), 
-        timing: [0.0, 1.0] 
+        id: 'lamian', name: "拉面", 
+        angles: [180, 180], draw: (el) => drawNotes(el, ['quarter', 'quarter']), timing: [0.0, 1.0] 
     },
     { 
-        id: 'jiuye', name: "韭叶", 
-        angles: [180, 90, 90], 
-        draw: (el) => drawNotes(el, ['quarter', 'eighth_pair']), 
-        timing: [0.0, 1.0, 1.5] 
+        id: 'chilamian', name: "吃拉面", 
+        angles: [180, 90, 90], draw: (el) => drawNotes(el, ['quarter', 'eighth_pair']), timing: [0.0, 1.0, 1.5] 
     },
     { 
-        id: 'erxi', name: "二细", 
-        angles: [90, 90, 180], 
-        draw: (el) => drawNotes(el, ['eighth_pair', 'quarter']), 
-        timing: [0.0, 0.5, 1.0] 
+        id: 'niuroumian', name: "牛肉面", 
+        angles: [90, 90, 180], draw: (el) => drawNotes(el, ['eighth_pair', 'quarter']), timing: [0.0, 0.5, 1.0] 
     },
     { 
-        id: 'sanxi', name: "三细", 
-        angles: [120, 120, 120], 
-        draw: (el) => drawNotes(el, ['triplet']), 
-        timing: [0.0, 0.66, 1.33] 
+        id: 'tianpeizi', name: "甜胚子", 
+        angles: [120, 120, 120], draw: (el) => drawNotes(el, ['triplet']), timing: [0.0, 0.66, 1.33] 
     },
     { 
-        id: 'xide', name: "细的", 
-        angles: [90, 90, 90, 90], 
-        draw: (el) => drawNotes(el, ['eighth_pair', 'eighth_pair']), 
-        timing: [0.0, 0.5, 1.0, 1.5] 
+        id: 'lanzhou', name: "兰州拉面", 
+        angles: [90, 90, 90, 90], draw: (el) => drawNotes(el, ['eighth_pair', 'eighth_pair']), timing: [0.0, 0.5, 1.0, 1.5] 
     },
     { 
-        id: 'maoxi', name: "毛细",
-        angles: [90, 90, 45, 45, 45, 45], 
-        draw: (el) => drawNotes(el, ['eighth_pair', 'sixteenth_quad']), 
+        id: 'shifu', name: "师傅，下个细滴", 
+        angles: [90, 90, 45, 45, 45, 45], draw: (el) => drawNotes(el, ['eighth_pair', 'sixteenth_quad']), 
         timing: [0.0, 0.5, 1.0, 1.25, 1.5, 1.75] 
     }
 ];
@@ -321,6 +329,7 @@ const ui = {
     ratingDisplay: document.getElementById('rating-display'),
     timeDisplay: document.getElementById('time-display'),
     comboValue: document.getElementById('combo-value'),
+    comboBonus: document.getElementById('combo-bonus'),
     orderText: document.getElementById('order-text'),
     progressBar: document.getElementById('song-progress'),
     svgGroup: document.getElementById('sectors-group'),
@@ -333,10 +342,11 @@ const ui = {
     circle: document.getElementById('rhythm-circle'),
     overlay: document.getElementById('overlay'),
     endOverlay: document.getElementById('end-overlay'),
-    finalScore: document.getElementById('final-score'),
-    maxComboText: document.getElementById('max-combo'),
+    endContent: document.getElementById('end-content'),
     restartBtn: document.getElementById('restart-btn'),
-    startBtn: document.getElementById('start-btn')
+    startBtn: document.getElementById('start-btn'),
+    bpmRange: document.getElementById('bpm-range'),
+    bpmVal: document.getElementById('bpm-val')
 };
 
 // --- Audio ---
@@ -345,11 +355,9 @@ function initAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         if(!AC) return;
         state.ctx = new AC();
-        // Silent buffer to unlock audio
         const buffer = state.ctx.createBuffer(1, 1, 22050);
         const source = state.ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(state.ctx.destination);
+        source.buffer = buffer; source.connect(state.ctx.destination);
         source.start(0);
         if(state.ctx.state === 'suspended') state.ctx.resume();
     } catch(e) { console.error(e); }
@@ -361,17 +369,12 @@ function playVocal(time) {
     const osc = state.ctx.createOscillator();
     const gain = state.ctx.createGain();
     const filter = state.ctx.createBiquadFilter();
-
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(450, t); 
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
-
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1200, t);
-    
+    filter.type = 'lowpass'; filter.frequency.setValueAtTime(1200, t);
     gain.gain.setValueAtTime(0.4, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
     osc.connect(filter); filter.connect(gain); gain.connect(state.ctx.destination);
     osc.start(t); osc.stop(t + 0.2);
 }
@@ -381,8 +384,7 @@ function playTone(freq, type, duration, vol, time) {
     const t = time || state.ctx.currentTime;
     const osc = state.ctx.createOscillator();
     const gain = state.ctx.createGain();
-    osc.frequency.value = freq;
-    osc.type = type;
+    osc.frequency.value = freq; osc.type = type;
     gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(gain); gain.connect(state.ctx.destination);
@@ -396,8 +398,7 @@ function schedule() {
     
     const currentTime = state.ctx ? state.ctx.currentTime : (Date.now()/1000);
     const elapsed = currentTime - state.gameStartTime;
-    
-    if (elapsed >= GAME_DURATION) { endGame(); return; }
+    if (elapsed >= GAME_DURATION) { endGame(false); return; }
     updateTimeUI(elapsed);
     
     const lookahead = 0.1;
@@ -417,7 +418,6 @@ function runBeat(time) {
 
     setTimeout(() => {
         if (!state.isPlaying) return;
-
         if (state.beatCounter === 0) {
             playTone(1000, 'square', 0.05, 0.1); 
             pickNewPattern();
@@ -441,7 +441,6 @@ function runBeat(time) {
         else if (state.beatCounter === 3) {
             playTone(800, 'square', 0.05, 0.1); 
         }
-
         state.beatCounter = (state.beatCounter + 1) % 4;
     }, delay > 0 ? delay : 0);
 }
@@ -449,7 +448,7 @@ function runBeat(time) {
 function setPhase(phase) {
     if (phase === 'listen') {
         state.canPlay = false;
-        ui.phaseBar.textContent = "👂 听题 (人声)";
+        ui.phaseBar.textContent = "👂 听题";
         ui.phaseBar.className = "phase-bar listen";
         ui.hitBtn.innerHTML = `<div>等待...</div>`;
         ui.hitBtn.className = "hit-btn"; 
@@ -460,6 +459,7 @@ function setPhase(phase) {
         ui.noodleViz.classList.remove('broken');
         ui.noodleViz.classList.remove('pulling');
         ui.dough.style.opacity = '1';
+        ui.comboBonus.classList.remove('show');
     } 
     else if (phase === 'ready') {
         state.canPlay = true; 
@@ -477,25 +477,41 @@ function updateRating(delta) {
     state.rating += delta;
     state.rating = Math.max(0, Math.min(5, state.rating));
     ui.ratingDisplay.textContent = state.rating.toFixed(2);
+    
     const rect = ui.ratingDisplay.getBoundingClientRect();
-    const text = delta > 0 ? "+0.05" : "-0.05";
+    const text = delta > 0 ? `+${delta.toFixed(3)}` : `${delta.toFixed(2)}`;
     const type = delta > 0 ? "plus" : "minus";
     showFloatText(text, type, rect.left + 50, rect.top + 30);
+
+    if (state.rating >= 5.0) {
+        setTimeout(() => endGame(true), 500);
+    }
 }
 
 function addCombo() {
     state.currentCombo++;
     if (state.currentCombo > state.maxCombo) state.maxCombo = state.currentCombo;
+    
+    // Updated Logic
+    let bonus = state.currentCombo > 10 ? 0.05 : 0.025;
+    
     ui.comboValue.textContent = state.currentCombo;
     ui.comboValue.className = "combo-value active pop";
+    
+    ui.comboBonus.textContent = `+${bonus}`;
+    ui.comboBonus.className = "combo-bonus show";
+    
     setTimeout(() => ui.comboValue.className = "combo-value active", 100);
-    updateRating(0.05);
+    
+    // Base score + Combo Bonus
+    updateRating(0.05 + bonus); 
 }
 
 function resetCombo() {
     state.currentCombo = 0;
     ui.comboValue.textContent = "0";
     ui.comboValue.className = "combo-value";
+    ui.comboBonus.className = "combo-bonus"; 
     updateRating(-0.05);
 }
 
@@ -562,15 +578,11 @@ function finishMeasure(success) {
 }
 
 function startGame() {
-    // 强制先隐藏界面，保证视觉反馈
     ui.overlay.style.display = 'none';
     ui.endOverlay.style.display = 'none';
-    
     initAudio();
-    
     state.rating = 3.5; ui.ratingDisplay.textContent = "3.50";
     state.currentCombo = 0; state.maxCombo = 0; ui.comboValue.textContent = "0";
-    
     state.isPlaying = true;
     state.gameStartTime = state.ctx ? state.ctx.currentTime : (Date.now()/1000);
     state.nextMeasureTime = state.gameStartTime + 0.5;
@@ -578,17 +590,36 @@ function startGame() {
     schedule();
 }
 
-function endGame() {
+function endGame(isWin) {
     state.isPlaying = false;
     ui.endOverlay.style.display = 'flex';
-    ui.finalScore.textContent = state.rating.toFixed(2);
-    ui.maxComboText.textContent = state.maxCombo;
+    
+    if (isWin) {
+        ui.endContent.innerHTML = `
+            <div class="ramen-god-text">你就是拉面之神！</div>
+            <div class="ramen-master-text">You are the Ramen Master!</div>
+            <div style="font-size:14px; color:#666; margin-bottom:20px;">
+                满分通关 | 最大连击: ${state.maxCombo}
+            </div>
+        `;
+    } else {
+        ui.endContent.innerHTML = `
+            <h1 style="color:#666; margin:0 0 10px 0;">😴 打烊了</h1>
+            <p style="color:#999; margin:0;">最终评分</p>
+            <div style="font-size:48px; font-weight:bold; color:var(--star-color);">
+                ⭐ ${state.rating.toFixed(2)}
+            </div>
+            <div style="font-size:14px; color:#999; margin:10px 0 20px 0;">
+                最大连击: ${state.maxCombo}
+            </div>
+        `;
+    }
 }
 
 function pickNewPattern() {
     const idx = Math.floor(Math.random() * patterns.length);
     state.currentPattern = patterns[idx];
-    ui.orderText.textContent = `顾客点单：${state.currentPattern.name}`;
+    ui.orderText.textContent = `${state.currentPattern.name}`;
     state.currentPattern.draw(ui.noteDisplay);
     drawSectors(state.currentPattern.angles);
 }
@@ -601,15 +632,13 @@ function updateTimeUI(elapsed) {
     ui.progressBar.style.width = `${(elapsed / GAME_DURATION) * 100}%`;
 }
 
-// --- Draw Helpers ---
 function drawNotes(container, types) {
     container.innerHTML = '';
     let svgHtml = `<svg width="240" height="80" viewBox="0 0 240 80">`;
     let x = 10;
     types.forEach(type => {
         if (type === 'whole') {
-            svgHtml += `<ellipse cx="${x+20}" cy="55" rx="10" ry="7" fill="none" stroke="black" stroke-width="2" transform="rotate(-20 ${x+20} 55)"/>`;
-            x += 80;
+            svgHtml += `<ellipse cx="${x+20}" cy="55" rx="10" ry="7" fill="none" stroke="black" stroke-width="2" transform="rotate(-20 ${x+20} 55)"/>`; x += 80;
         } else if (type === 'quarter') {
             svgHtml += `<ellipse cx="${x+15}" cy="55" rx="8" ry="6" fill="black" transform="rotate(-20 ${x+15} 55)"/>`;
             svgHtml += `<line x1="${x+22}" y1="55" x2="${x+22}" y2="15" stroke="black" stroke-width="2"/>`; x += 50;
@@ -674,11 +703,14 @@ function resetVisuals() {
     document.querySelectorAll('.sector').forEach(s => s.classList.remove('filled'));
 }
 
-// Bind Events
 ui.startBtn.addEventListener('click', startGame);
 ui.restartBtn.addEventListener('click', startGame);
 ui.hitBtn.addEventListener('touchstart', handleInput, {passive: false});
 ui.hitBtn.addEventListener('mousedown', handleInput);
+ui.bpmRange.addEventListener('input', (e) => {
+    BPM = parseInt(e.target.value);
+    document.getElementById('bpm-val').textContent = BPM;
+});
 </script>
 </body>
 </html>
