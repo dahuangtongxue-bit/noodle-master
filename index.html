@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>拉面大师 - 60秒最终版</title>
+    <title>拉面大师 - 黑金极简版</title>
     <style>
         :root {
             --primary-blue: #104e8b;
             --bg-color: #fdfdfd;
-            --active-color: #ffaa00;
+            --active-color: #ffaa00; /* 激活色：金橙色 */
             --ready-color: #2979FF; 
             --play-color: #1565C0;  
             --success-color: #4CAF50;
             --fail-color: #F44336;
             --star-color: #FFC107;
+            --gold-text: #FF9800;
+            --black-theme: #222; /* 新增黑色主题色 */
         }
 
         html, body {
@@ -110,15 +112,38 @@
         }
         .combo-bonus.show { opacity: 1; transform: translateY(0); }
 
+        /* SVG 样式调整 */
         .rhythm-svg {
             width: 55vw; height: 55vw; max-width: 240px; max-height: 240px;
             margin-bottom: 10px; transition: opacity 0.2s; z-index: 1;
+            overflow: visible; 
         }
         .rhythm-svg.dim { opacity: 0.3; }
         
-        .sector { fill: #fff; stroke: #ccc; stroke-width: 2; transition: fill 0.05s; }
-        .sector.filled { fill: var(--active-color); stroke: var(--active-color); }
+        /* 扇区样式 */
+        .sector { 
+            fill: #fff; /* 默认白色 */
+            stroke: #ccc; /* 默认浅灰描边 */
+            stroke-width: 2; 
+            transition: fill 0.05s; 
+        }
+        .sector.filled { 
+            fill: var(--active-color); /* 激活变金橙色 */
+            stroke: var(--active-color); /* 描边也变色，消除缝隙 */
+        }
         .border-line { stroke: #fff; stroke-width: 3; }
+        
+        /* 新的黑色圆环和指针样式 */
+        .black-ring {
+            fill: none;
+            stroke: var(--black-theme);
+            stroke-width: 3; /* 加粗黑色边框 */
+        }
+        .black-pointer {
+            stroke: var(--black-theme);
+            stroke-width: 4;
+            stroke-linecap: round; /* 圆头指针 */
+        }
 
         .noodle-area { height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .noodle-viz { display: flex; align-items: center; gap: 10px; position: relative; }
@@ -166,6 +191,7 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.98); z-index: 999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center;
         }
         .start-btn {
             margin-top: 30px; padding: 15px 60px;
@@ -190,17 +216,28 @@
         
         /* End Screen Text */
         .ramen-god-text {
-            font-size: 40px; font-weight: 900; color: #d32f2f;
+            font-size: 32px; font-weight: 900; color: #d32f2f;
             text-shadow: 2px 2px 0 #fff, 0 0 10px rgba(211, 47, 47, 0.5);
             margin-bottom: 5px; animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .ramen-master-text {
-            font-size: 20px; font-weight: bold; color: #555;
+            font-size: 18px; font-weight: bold; color: #555;
             font-family: 'Georgia', serif; font-style: italic;
             margin-bottom: 20px; opacity: 0; animation: fadeIn 1s 0.5s forwards;
         }
+        .award-text {
+            font-size: 20px; font-weight: bold; color: var(--gold-text);
+            margin-bottom: 10px; border: 2px solid var(--gold-text);
+            padding: 5px 15px; border-radius: 50px;
+            background: #FFF3E0; animation: fadeIn 1s 0.2s forwards; opacity: 0;
+        }
+        
         @keyframes zoomIn { from {transform: scale(0);} to {transform: scale(1);} }
         @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+        
+        /* Intro Text */
+        .intro-title { font-size: 28px; margin-bottom: 10px; color: #333; }
+        .intro-sub { font-size: 16px; color: #666; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -219,7 +256,7 @@
             </div>
         </div>
         <div class="hud-item">
-            <span class="hud-label">大众点评</span>
+            <span class="hud-label">大众评分</span>
             <div class="hud-value rating">
                 <span class="star-icon">⭐</span>
                 <span id="rating-display">3.50</span>
@@ -247,8 +284,9 @@
         </div>
 
         <svg class="rhythm-svg dim" id="rhythm-circle" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="48" fill="none" stroke="#ddd" stroke-width="2" />
             <g id="sectors-group"></g>
+            <circle cx="50" cy="50" r="48" class="black-ring" />
+            <line x1="50" y1="0" x2="50" y2="10" class="black-pointer" />
         </svg>
 
         <div class="noodle-area">
@@ -265,13 +303,13 @@
     </div>
 
     <div class="overlay" id="overlay">
-        <h1>🍜 拉面大师</h1>
-        <p style="color:#666; margin:10px 0;">3.5分起步 · 满5分封神</p>
+        <h1 class="intro-title">欢迎来到拉面大师</h1>
+        <p class="intro-sub">准备好跟着节奏来卡点拉面吧！</p>
         <button class="start-btn" id="start-btn">开始营业</button>
     </div>
     
     <div class="overlay" id="end-overlay" style="display:none;">
-        <div id="end-content" style="text-align:center;"></div>
+        <div id="end-content" style="text-align:center; display:flex; flex-direction:column; align-items:center;"></div>
         <button class="start-btn" id="restart-btn">再次营业</button>
     </div>
 </div>
@@ -502,8 +540,6 @@ function addCombo() {
     ui.comboBonus.className = "combo-bonus show";
     
     setTimeout(() => ui.comboValue.className = "combo-value active", 100);
-    
-    // Base score + Combo Bonus
     updateRating(0.05 + bonus); 
 }
 
@@ -598,8 +634,9 @@ function endGame(isWin) {
         ui.endContent.innerHTML = `
             <div class="ramen-god-text">你就是拉面之神！</div>
             <div class="ramen-master-text">You are the Ramen Master!</div>
+            <div class="award-text">🏆 店铺已获必吃榜</div>
             <div style="font-size:14px; color:#666; margin-bottom:20px;">
-                满分通关 | 最大连击: ${state.maxCombo}
+                已获5星好评 | 最大连击: ${state.maxCombo}
             </div>
         `;
     } else {
@@ -675,12 +712,21 @@ function drawNotes(container, types) {
 function drawSectors(angles) {
     ui.svgGroup.innerHTML = '';
     const radius = 48; const center = 50;
+    
+    if(angles.length === 1 && angles[0] === 360) {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", center); circle.setAttribute("cy", center); circle.setAttribute("r", radius);
+        circle.setAttribute("class", "sector"); circle.setAttribute("id", "sec-0");
+        ui.svgGroup.appendChild(circle);
+        return;
+    }
+
     let currentAngle = -90;
     angles.forEach((angle, i) => {
         const startRad = Math.PI * currentAngle / 180;
         const endRad = Math.PI * (currentAngle + angle) / 180;
         const x1 = center + radius * Math.cos(startRad);
-        const y1 = center + radius * Math.sin(startRad);
+        const y1 = center + radius * Math.sin(startRad); 
         const x2 = center + radius * Math.cos(endRad);
         const y2 = center + radius * Math.sin(endRad);
         const largeArc = angle > 180 ? 1 : 0;
